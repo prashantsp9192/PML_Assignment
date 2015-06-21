@@ -1,0 +1,103 @@
+
+---
+title: "PML_Assignment"
+author: "Anonymous"
+date: "Sunday, June 21, 2015"
+output: html_document
+---
+
+### Loading and preprocessing the data ###
+
+```{r, cache=TRUE}
+# Loading the caret package
+library(caret)
+
+#reading the original training and test data
+train_csv<-read.csv("pml-training.csv")
+test_csv<-read.csv("pml-testing.csv")
+
+# removing the first column from predictor
+new_data1<-train_csv[,-1]
+test_data1<-test_csv[,-1]
+
+# removing date and time columns from  predictor ( as they are insignificant in determining the final class)
+new_data2<-new_data1[,-c(3:7)]
+test_data2<-test_data1[,-c(3:7)]
+
+# removing the columns that have a large number of NA's from predictor
+num=15000
+temp<-c()
+for(i in 1:ncol(new_data2))
+{
+        if(sum(is.na(new_data2[,i]))>num)
+        {
+                temp<-c(temp,i)
+        }
+}
+
+new_data3<-new_data2[,-temp]
+test_data3<-test_data2[,-temp]
+
+
+# removing the factor variables in the data from predictor
+temp2<-c()
+for(i in 1:ncol(new_data3))
+{
+        if(is.factor(new_data3[,i]))
+        {
+                temp2<-c(temp2,i)
+        }
+}
+
+new_data4<-new_data3[,-temp2]
+test_data4<-test_data3[,-temp2]
+
+# Since the above operation also removed the factor variable 'classe'. Adding it here again.
+new_data4<-cbind(new_data4,"classe"=train_csv[,160])
+test_data4<-cbind(test_data4,"classe"=test_csv[,160])
+
+# The training data is the 'data' and testing data is called 'test_data'
+data<-new_data4
+test_data<-test_data4
+
+```
+
+### Partitioning the Traning data into training and test sets ###
+
+```{r, cache=TRUE}
+# creating data partition with 70% traning data and 30 testing data from the data.frame 'data' above.
+inTrain<-createDataPartition(y=data$classe,p=0.7,list=FALSE)
+training<-data[inTrain,]
+testing<-data[-inTrain,]
+```
+
+
+### Applying the random forest model and predicting the output on the test set ###
+
+```{r, cache=TRUE}
+# Applying the random forest classfication algorithm with defaults
+model_rf<-train(classe ~ .,method="rf",data=training)
+
+# Plotting the finalModel
+plot(model_rf$finalModel)
+
+#predicting on the testing data
+predicted_rf<-predict(model_rf,newdata=testing)
+```
+
+
+### out of sample error with cross-validation (called testing here) ###
+```{r, cache=TRUE}
+# Getting the accuracy on the testing  set. (This is the testing set from the partition function)
+confusionMatrix(predicted_rf,testing$classe)
+```
+
+
+### Applying the model to the final test_data ###
+```{r, cache=TRUE}
+# Applying the model to the final test_data
+predicted_rf_final<-predict(model_rf,newdata=test_data)
+
+
+print(predicted_rf_final)
+```
